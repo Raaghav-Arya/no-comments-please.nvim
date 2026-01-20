@@ -5,6 +5,10 @@ M._state = {} -- Per-buffer state: { [bufnr] = { folded = bool, fold_ids = {} } 
 local defaults = {
     merge_consecutive = true,
     include_blank_after = false,
+    default_foldexpr = "v:lua.vim.lsp.foldexpr()", -- Default foldexpr for fallback reset
+    keybinds = {
+        restore_foldexpr = "<leader>zl", -- Keybind to restore default foldexpr
+    },
 }
 
 M._config = defaults
@@ -24,6 +28,19 @@ function M.setup(opts)
     vim.api.nvim_create_user_command("CommentFoldToggle", function()
         M.toggle()
     end, { desc = "Toggle comment folding" })
+
+    -- Set up keybindings if provided
+    if M._config.keybinds and M._config.keybinds.restore_foldexpr then
+        vim.keymap.set("n", M._config.keybinds.restore_foldexpr, function()
+            local bufnr = vim.api.nvim_get_current_buf()
+            local foldexpr_mod = require("no-comments-please.foldexpr")
+            foldexpr_mod.restore_default_foldexpr(bufnr, M._config.default_foldexpr)
+            if M._state[bufnr] then
+                M._state[bufnr].folded = false
+            end
+            vim.notify("Restored default foldexpr", vim.log.levels.INFO)
+        end, { desc = "Restore default foldexpr", silent = true })
+    end
 
     -- Restore original foldexpr before persistence.nvim saves session
     vim.api.nvim_create_autocmd("User", {

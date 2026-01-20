@@ -65,37 +65,21 @@ function M.get_comment_ranges(bufnr, config)
 
     local ranges = {}
 
-    -- Method 1: Use highlights query with @comment capture
-    local query_ok, query = pcall(vim.treesitter.query.get, lang, "highlights")
-    if query_ok and query then
-        for id, node, _ in query:iter_captures(root, bufnr, 0, -1) do
-            local capture_name = query.captures[id]
-            if capture_name and capture_name:match("^comment") then
-                local start_row, start_col, end_row, _ = node:range()
-                -- Skip inline comments (comments with code before them)
-                if not is_inline_comment(bufnr, start_row, start_col) then
-                    table.insert(ranges, { start_row + 1, end_row + 1 }) -- Convert to 1-indexed
-                end
+    -- Use AST traversal to find comment nodes only
+    -- This is much more efficient than iterating through all highlights captures
+    local function traverse(node)
+        if is_comment_type(node:type()) then
+            local start_row, start_col, end_row, _ = node:range()
+            -- Skip inline comments
+            if not is_inline_comment(bufnr, start_row, start_col) then
+                table.insert(ranges, { start_row + 1, end_row + 1 })
             end
         end
-    end
-
-    -- Method 2: Fallback - traverse tree and find comment nodes
-    if #ranges == 0 then
-        local function traverse(node)
-            if is_comment_type(node:type()) then
-                local start_row, start_col, end_row, _ = node:range()
-                -- Skip inline comments
-                if not is_inline_comment(bufnr, start_row, start_col) then
-                    table.insert(ranges, { start_row + 1, end_row + 1 })
-                end
-            end
-            for child in node:iter_children() do
-                traverse(child)
-            end
+        for child in node:iter_children() do
+            traverse(child)
         end
-        traverse(root)
     end
+    traverse(root)
 
     -- Merge consecutive ranges if configured
     if config.merge_consecutive and #ranges > 1 then
