@@ -103,7 +103,7 @@ end
 ---@param config table
 ---@return table[]
 function M.merge_ranges(ranges, bufnr, config)
-    -- Sort by start line
+    -- Sort by start line (required - foldexpr.activate relies on sorted ranges)
     table.sort(ranges, function(a, b)
         return a[1] < b[1]
     end)

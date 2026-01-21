@@ -74,11 +74,7 @@ end
 ---@param bufnr number
 ---@param ranges table[]
 function M.activate(bufnr, ranges)
-    -- Sort ranges by start line for binary search efficiency
-    table.sort(ranges, function(a, b)
-        return a[1] < b[1]
-    end)
-
+    -- Ranges are already sorted by treesitter.merge_ranges()
     -- Save comment ranges
     M._comment_ranges[bufnr] = ranges
 
