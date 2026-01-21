@@ -119,8 +119,9 @@ function M.deactivate(bufnr)
         M._original_foldexpr[bufnr] = nil
     end
 
-    -- Recompute folds
-    vim.cmd("normal! zx")
+    -- Open all folds - faster than zx recompute
+    -- LSP foldexpr will recompute lazily when user interacts with folds
+    vim.cmd("normal! zR")
 end
 
 --- Restore default foldexpr (configurable fallback)
