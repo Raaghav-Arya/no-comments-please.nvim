@@ -96,9 +96,13 @@ function M.activate(bufnr, ranges)
     vim.cmd("normal! zx")
 
     -- Close only comment folds (not LSP folds like functions/structs)
-    for _, range in ipairs(ranges) do
-        -- Use Ex command with range to close fold without cursor movement
-        pcall(vim.cmd, string.format("%d,%dfoldclose", range[1], range[2]))
+    -- Batch all foldclose commands for efficiency
+    if #ranges > 0 then
+        local cmds = {}
+        for _, range in ipairs(ranges) do
+            table.insert(cmds, string.format("%d,%dfoldclose", range[1], range[2]))
+        end
+        pcall(vim.api.nvim_exec2, table.concat(cmds, "\n"), { output = false })
     end
 end
 
