@@ -1,6 +1,6 @@
 local M = {}
 
-M._state = {} -- Per-buffer state: { [bufnr] = { folded = bool, fold_ids = {} } }
+M._state = {} -- Per-buffer state: { [bufnr] = { folded = bool, ranges = {}, changedtick = number } }
 
 local defaults = {
     merge_consecutive = true,
@@ -75,8 +75,19 @@ function M.fold()
         return
     end
 
-    -- Get comment ranges
-    local ranges = treesitter.get_comment_ranges(bufnr, M._config)
+    -- Check cache validity
+    local state = M._state[bufnr]
+    local current_tick = vim.api.nvim_buf_get_changedtick(bufnr)
+    local ranges
+
+    if state and state.ranges and state.changedtick == current_tick then
+        -- Use cached ranges
+        ranges = state.ranges
+    else
+        -- Detect fresh
+        ranges = treesitter.get_comment_ranges(bufnr, M._config)
+    end
+
     if #ranges == 0 then
         vim.notify("CommentFold: No comments found", vim.log.levels.INFO)
         return
@@ -85,9 +96,13 @@ function M.fold()
     -- Create folds
     fold_mod.create_folds(bufnr, ranges)
 
-    -- Track state
-    M._state[bufnr] = M._state[bufnr] or {}
+    -- Track state with cache
+    if not M._state[bufnr] then
+        M._state[bufnr] = {}
+    end
     M._state[bufnr].folded = true
+    M._state[bufnr].ranges = ranges
+    M._state[bufnr].changedtick = current_tick
 
     vim.notify("CommentFold: Folded " .. #ranges .. " comment block(s)", vim.log.levels.INFO)
 end
@@ -100,6 +115,7 @@ function M.unfold()
 
     if M._state[bufnr] then
         M._state[bufnr].folded = false
+        -- Keep ranges and changedtick for fast re-fold
     end
 
     vim.notify("CommentFold: Unfolded all comments", vim.log.levels.INFO)
